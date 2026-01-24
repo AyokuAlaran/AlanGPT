@@ -5,11 +5,26 @@ import xgboost as xgb
 import joblib
 from google import genai
 from sklearn.model_selection import train_test_split
+
 try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-except:
-    # Fallback for when you run it locally on your own machine
-    API_KEY = "YOUR_ACTUAL_RAW_KEY_HERE"
+    # Check if key exists in secrets
+    if "GEMINI_API_KEY" in st.secrets:
+        API_KEY = st.secrets["GEMINI_API_KEY"]
+    else:
+        # If running locally, check if you pasted it directly (NOT RECOMMENDED for sharing)
+        API_KEY = "YOUR_ACTUAL_RAW_KEY_HERE"
+        
+    # Validation: If the key is still the default text, STOP the app.
+    if API_KEY.startswith("YOUR_ACTUAL"):
+        st.error("🚨 CRITICAL ERROR: API Key is missing!")
+        st.info("Go to Streamlit Settings -> Secrets and add GEMINI_API_KEY.")
+        st.stop() # This halts the app so it doesn't crash with a ClientError
+        
+    client = genai.Client(api_key=API_KEY)
+
+except Exception as e:
+    st.error(f"🚨 Configuration Error: {e}")
+    st.stop()
 
 client = genai.Client(api_key=API_KEY)
 gemini_model = 'gemini-2.5-flash'
