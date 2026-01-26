@@ -67,27 +67,33 @@ def run_ai_prediction(team_a, team_b, model, matches_df):
 
     # Prompt for Gemini
     prompt = f"""
-    SYSTEM: BPCL Tactical Analyst.
+    SYSTEM: You are the BPCL Tactical Analyst.
+    CONTEXT: All matches are played at a NEUTRAL VENUE. There is NO home advantage or away disadvantage. Treat both teams as playing on level ground.
     MATCH: {team_a} vs {team_b}
     
-    MATH FORECAST:
+    RAW XGBOOST FORECAST (For Reference):
     - {team_a} Win: {smooth_probs[2]*100:.1f}%
     - Draw: {smooth_probs[1]*100:.1f}%
     - {team_b} Win: {smooth_probs[0]*100:.1f}%
     
-    FORM GUIDE:
-    - {team_a}: {s_a['op']:.1f} goals/game
-    - {team_b}: {s_b['op']:.1f} goals/game
+    FORM GUIDE (Last 4 Games):
+    - {team_a}: Averaging {s_a['op']:.1f} goals scored/game
+    - {team_b}: Averaging {s_b['op']:.1f} goals scored/game
 
+    YOUR TASKS:
+    1. ANALYZE: Identify if XGBoost is overreacting to small sample sizes (e.g., if a team has one lucky 6-0 win but low skill, the math might be too high).
+    2. CALIBRATE: Adjust the raw percentages based on your analysis of the sample size and neutral venue.
+    3. PREVIEW: Write a 'Tactical Preview' (Strictly Max 3 sentences) explaining the clash.
+    
     OUTPUT FORMAT:
     ### PERCENTS
-    {smooth_probs[2]*100:.0f}% - {smooth_probs[1]*100:.0f}% - {smooth_probs[0]*100:.0f}%
+    [Your Final Calibrated Percentages: Home% - Draw% - Away%]
     
     ### INSIGHT
-    [3 sentences. Tactical focus. No numbers.]
+    [The Tactical Preview: Max 3 sentences. Focus on style of play and the stats that affected the prediction.]
     
     ### REASONING
-    [Explain why the model favors one team. Discuss Skill Gap vs Momentum.]
+    [Explain your calibration. Explicitly mention if you adjusted for 'Overreaction to Form (Momentum)' or 'Small Sample Size'.]
     """
 
     response = client.models.generate_content(model=MODEL_ID, contents=prompt)
