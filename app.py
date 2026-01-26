@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-import gemini_backend_v5 as backend
+import gemini_backend_v6 as backend
 
 # ==========================================
 # 1. PAGE CONFIG & CUSTOM CSS (Teal/White Theme)
