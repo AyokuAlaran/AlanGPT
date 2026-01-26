@@ -115,73 +115,60 @@ def load_engine():
     return model, processed_data
 
 # ==========================================
-# 4. HEADER SECTION (Button + Titles)
+# OPTIMIZED LOADING
 # ==========================================
-# Top row for the external link button
-col_spacer, col_btn = st.columns([3, 1])
-with col_btn:
-    st.link_button("View League Table", "https://myproclubs.com/t/bpcl")
+@st.cache_resource
+def load_engine():
+    # Loads the files ONCE per server reboot. Fast.
+    return backend.load_production_system()
 
-# Centered Headings
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_cached_report(t1, t2):
+    # Caches the Gemini Result for 1 hour.
+    # If User A generates this, User B sees it instantly.
+    return backend.run_ai_prediction(t1, t2, model, matches)
+
+# HEADER
+st.link_button("🏆 View League Table", "https://myproclubs.com/t/bpcl")
 st.markdown('<h1 class="main-title">BPCL Match Predictor</h1>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">AI-Powered Tactical Scouting</div>', unsafe_allow_html=True)
 
-# ==========================================
-# 5. MAIN INTERFACE
-# ==========================================
-# Load Brain
-with st.spinner("Initializing Neural Engine..."):
+# LOAD
+with st.spinner("Loading System..."):
     model, matches = load_engine()
     team_list = sorted(matches['home_team'].unique())
 
-# Team Selection
-col1, col2 = st.columns(2)
+# INPUTS
+c1, c2 = st.columns(2)
+with c1: team_a = st.selectbox("Home Team", team_list, key="t1")
+with c2: team_b = st.selectbox("Away Team", team_list, index=1, key="t2")
 
-with col1:
-    team_a = st.selectbox("Select Home Team", team_list, key="t1")
-    # Try to show logo
-    logo_a = get_logo_path(team_a)
-    if os.path.exists(logo_a):
-        st.image(logo_a, width=120)
-
-with col2:
-    team_b = st.selectbox("Select Away Team", team_list, index=1, key="t2")
-    logo_b = get_logo_path(team_b)
-    if os.path.exists(logo_b):
-        st.image(logo_b, width=120)
-
-st.write("") # Spacer
-
-# ==========================================
-# 6. PREDICTION ENGINE
-# ==========================================
+# LOGIC
 if st.button("GENERATE SCOUT REPORT"):
-    if team_a == team_b:
-        st.warning("⚠️ Please select two different teams.")
-    else:
-        # REAL LOADER: Stays active until backend finishes
-        with st.spinner(f"Crunching numbers for {team_a} vs {team_b}..."):
+    if team_a != team_b:
+        with st.spinner(f"🤖 Analyzing {team_a} vs {team_b}..."):
             
-            # 1. Get raw text from Gemini
-            raw_report = backend.run_ai_prediction(team_a, team_b, model, matches)
+            # CALL CACHED FUNCTION
+            raw_text = get_cached_report(team_a, team_b)
             
-            # 2. Clean Asterisks (**)
-            clean_report = raw_report.replace("**", "")
-            
-            # 3. Display
-            st.markdown(f"""
-            <div class="result-card">
-                <h3>📊 Tactical Analysis</h3>
-                {clean_report.replace(chr(10), '<br>')}
-            </div>
-            """, unsafe_allow_html=True)
+            # Parse
+            try:
+                parts = raw_text.split("###")
+                percents = parts[1].replace("PERCENTS", "").strip() if len(parts)>1 else "Pending"
+                insight = parts[2].replace("INSIGHT", "").strip() if len(parts)>2 else raw_text
+                reasoning = parts[3].replace("REASONING", "").strip() if len(parts)>3 else "..."
+            except:
+                percents, insight, reasoning = "Error", raw_text, "..."
 
-# ==========================================
-# 7. FOOTER
-# ==========================================
-st.markdown("""
-<div class="footer">
-    Built by <b>Alan Corp.</b><br>
-    Contact: <a href="mailto:aelanlockin@gmail.com">aelanlockin@gmail.com</a>
-</div>
-""", unsafe_allow_html=True)
+            # Display
+            st.write("---")
+            f1, f2, f3 = st.columns([1, 2, 1])
+            with f1: 
+                if os.path.exists(get_logo_path(team_a)): st.image(get_logo_path(team_a), width=80)
+                else: st.write(f"**{team_a}**")
+            with f2: st.markdown(f'<div class="fixture-score">{percents}</div>', unsafe_allow_html=True)
+            with f3: 
+                if os.path.exists(get_logo_path(team_b)): st.image(get_logo_path(team_b), width=80)
+                else: st.write(f"**{team_b}**")
+            
+            st.markdown(f'<div class="result-card"><h3>📢 Tactical Insight</h3>{insight}</div>', unsafe_allow_html=True)
+            with st.expander("Show Model Reasoning"): st.info(reasoning)
