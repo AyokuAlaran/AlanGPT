@@ -1,105 +1,65 @@
 import streamlit as st
 import pandas as pd
 import os
-import gemini_backend_v6 as backend 
-# NOTE: Ensure this import matches the filename where you pasted the v8 code. 
-# If you pasted the v8 code into 'gemini_backend_v6.py', keep this. 
-# If you named it 'gemini_backend_v8.py', change this line!
+import joblib
 
-# 1. CONFIG
-st.set_page_config(page_title="BPCL Scout", page_icon="⚽", layout="centered")
+# 1. SETUP PAGE
+st.set_page_config(page_title="BPCL Scout (Debug)", page_icon="🔧")
 
-st.markdown("""
-<style>
-    .stApp { background-color: #F5F9F9; color: #0F3D3D; }
-    .main-title { text-align: center; color: #008080 !important; font-size: 3rem; margin-bottom: 0px; font-weight: 800; }
-    .fixture-score { 
-        text-align: center; font-size: 20px; font-weight: 900; 
-        color: #008080; background: white; padding: 15px; 
-        border-radius: 12px; box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
-        border: 1px solid #e0f2f1;
-    }
-    .result-card { background-color: white; padding: 25px; border-radius: 15px; border-top: 5px solid #008080; margin-top: 20px;}
-    div.stButton > button { 
-        background-color: #008080; color: white; border-radius: 12px; 
-        padding: 12px; font-size: 18px; font-weight: bold; width: 100%; border: none;
-    }
-</style>
-""", unsafe_allow_html=True)
+st.title("🔧 Diagnostic Mode")
+st.write("If you see this, the app has started.")
 
-# 2. LOGO UTILS
-def get_logo_path(team_name):
-    # Checks for multiple extensions
-    for ext in ["png", "PNG", "jpg", "JPG"]:
-        path = f"team_logos/{team_name}.{ext}"
-        if os.path.exists(path): return path
-    return None
+# 2. CHECK FILES (Debugging step)
+st.write("---")
+st.write("📂 **Checking File System...**")
 
-# 3. HIGH SPEED LOADING
-@st.cache_resource
-def load_system():
-    # UPDATED: Now returns 3 items (Model, Scaler, Data)
-    return backend.load_production_system()
+files_needed = ['production_model.pkl', 'production_scaler.pkl', 'processed_matches.parquet']
+missing_files = []
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_report(t1, t2):
-    # UPDATED: Passes the global 'scaler' to the backend
-    return backend.run_ai_prediction(t1, t2, model, scaler, matches)
-
-# 4. UI LAYOUT
-st.link_button("🏆 League Table", "https://myproclubs.com/t/bpcl")
-st.markdown('<h1 class="main-title">BPCL Match Predictor</h1>', unsafe_allow_html=True)
-
-with st.spinner("Booting AI..."):
-    # UPDATED: Unpack 3 variables here
-    model, scaler, matches = load_system()
-    teams = sorted(matches['home_team'].unique())
-
-c1, c2 = st.columns(2)
-with c1: t1 = st.selectbox("Home", teams, key="1")
-with c2: t2 = st.selectbox("Away", teams, index=1, key="2")
-
-# 5. PREDICTION
-if st.button("GENERATE SCOUT REPORT"):
-    if t1 != t2:
-        with st.spinner(f"⚡ Analyzing {t1} vs {t2}..."):
-            # The function 'get_report' uses the global 'scaler' we defined above
-            raw = get_report(t1, t2)
-            
-            # Parsing
-            try:
-                parts = raw.split("###")
-                percents = parts[1].replace("PERCENTS", "").strip() if len(parts) > 1 else "Pending"
-                insight = parts[2].replace("INSIGHT", "").strip() if len(parts) > 2 else raw
-                reasoning = parts[3].replace("REASONING", "").strip() if len(parts) > 3 else "Analysis Unavailable"
-            except:
-                percents, insight, reasoning = "Pending", raw, "Analysis Error"
-
-            # FIXTURE DISPLAY
-            st.write("---")
-            c_a, c_mid, c_b = st.columns([1, 2, 1])
-            with c_a:
-                logo = get_logo_path(t1)
-                if logo: st.image(logo, width=90)
-                else: st.markdown(f"**{t1}**")
-            
-            with c_mid:
-                st.markdown(f"<div class='fixture-score'>{percents}</div>", unsafe_allow_html=True)
-                st.markdown("<div style='text-align:center; font-size:12px; color:#888;'>Win % - Draw % - Win %</div>", unsafe_allow_html=True)
-
-            with c_b:
-                logo = get_logo_path(t2)
-                if logo: st.image(logo, width=90)
-                else: st.markdown(f"**{t2}**")
-
-            st.write("---")
-            
-            # INSIGHT
-            st.markdown(f"<div class='result-card'><h3>📢 Tactical Insight</h3>{insight}</div>", unsafe_allow_html=True)
-            
-            # HIDDEN REASONING
-            st.write("")
-            with st.expander("Show Model Reasoning (Math & Weights)"):
-                st.info(reasoning)
+for f in files_needed:
+    if os.path.exists(f):
+        st.success(f"✅ Found: {f}")
     else:
-        st.warning("⚠️ Please select two different teams.")
+        st.error(f"❌ MISSING: {f}")
+        missing_files.append(f)
+
+if missing_files:
+    st.error("🚨 CRITICAL ERROR: You must upload the missing files to GitHub!")
+    st.stop() # Stops here if files are missing
+
+# 3. ATTEMPT IMPORT (Debugging step)
+st.write("---")
+st.write("🔄 **Importing Backend...**")
+try:
+    import gemini_backend_v6 as backend
+    st.success("✅ Backend Imported Successfully")
+except Exception as e:
+    st.error(f"❌ Backend Import Failed: {e}")
+    st.stop()
+
+# 4. ATTEMPT LOAD (Debugging step)
+st.write("---")
+st.write("🧠 **Loading Brain (Model & Scaler)...**")
+
+# We deliberately DO NOT use cache here to force a fresh load and see errors
+try:
+    model, scaler, matches = backend.load_production_system()
+    st.success("✅ System Loaded! Model, Scaler, and Data are ready.")
+except ValueError as e:
+    st.error(f"❌ Unpacking Error: {e}")
+    st.warning("Hint: Did you update the backend to return 3 items (model, scaler, matches)?")
+    st.stop()
+except Exception as e:
+    st.error(f"❌ Loading Error: {e}")
+    st.stop()
+
+# 5. UI RENDER (If we get here, the app works)
+st.write("---")
+st.success("🚀 UI RENDER STARTING...")
+
+teams = sorted(matches['home_team'].unique())
+t1 = st.selectbox("Test Select 1", teams)
+t2 = st.selectbox("Test Select 2", teams, index=1)
+
+if st.button("Test Generate"):
+    st.write("Button Clicked!")
