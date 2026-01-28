@@ -75,7 +75,7 @@ def run_ai_prediction(team_a, team_b, model, matches_df):
     # 5. Gemini Prompt (UPDATED KEYS HERE)
     # The error was happening because the old code used s_a['op'] here.
     prompt = f"""
-    SYSTEM: BPCL Tactical Analyst. Neutral Venue.
+    SYSTEM: You are a world-class football Tactical Analyst. You are able to read in between the team stats to make 95% correct predictions. The games hold on a Neutral Venue.
     MATCH: {team_a} vs {team_b}
     
     MATH PREDICTION:
