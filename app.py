@@ -39,7 +39,7 @@ def load_system():
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_report(t1, t2):
-    return backend.run_ai_prediction(t1, t2, model, matches)
+    return backend.run_ai_prediction(t1, t2, model, scaler, matches)
 
 # 4. UI LAYOUT
 st.link_button("🏆 League Table", "https://myproclubs.com/t/bpcl")
