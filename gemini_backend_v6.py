@@ -72,35 +72,35 @@ def run_ai_prediction(team_a, team_b, model, matches_df):
     raw_probs = model.predict_proba(input_data)[0]
     smooth_probs = (raw_probs * 0.85) + (0.15 / 3)
     
-    # Prompt for Gemini
+    # 5. Gemini Prompt (UPDATED KEYS HERE)
+    # The error was happening because the old code used s_a['op'] here.
     prompt = f"""
-    SYSTEM: You are the BPCL Tactical Analyst.
-    CONTEXT: All matches are played at a NEUTRAL VENUE. There is NO home advantage or away disadvantage. Treat both teams as playing on level ground.
+    SYSTEM: BPCL Tactical Analyst. Neutral Venue.
     MATCH: {team_a} vs {team_b}
     
-    RAW XGBOOST FORECAST (For Reference):
+    MATH PREDICTION:
     - {team_a} Win: {smooth_probs[2]*100:.1f}%
     - Draw: {smooth_probs[1]*100:.1f}%
     - {team_b} Win: {smooth_probs[0]*100:.1f}%
     
-    FORM GUIDE (Last 4 Games):
-    - {team_a}: Averaging {s_a['op']:.1f} goals scored/game
-    - {team_b}: Averaging {s_b['op']:.1f} goals scored/game
-
-    YOUR TASKS:
-    1. ANALYZE: Identify if XGBoost is overreacting to small sample sizes (e.g., if a team has one lucky 6-0 win but low skill, the math might be too high).
-    2. CALIBRATE: Adjust the raw percentages based on your analysis of the sample size and neutral venue.
-    3. PREVIEW: Write a 'Tactical Preview' (Strictly Max 3 sentences) explaining the clash.
+    DEEP DIVE FORM (Contextual):
+    - {team_a}: Recent Avg {s_a['recent_op']:.1f} goals (Season Avg: {s_a['season_op']:.1f})
+    - {team_b}: Recent Avg {s_b['recent_op']:.1f} goals (Season Avg: {s_b['season_op']:.1f})
     
+    TASKS:
+    1. Compare Recent Form vs Season Avg. Identify if a team is "Overperforming" (Hot Streak) or "Underperforming" (Slump).
+    2. Adjust prediction: If a weak team has high recent form but low season stats, treat it as a "Purple Patch" (volatile).
+    3. Output Calibrated Percentages and a 3-sentence preview.
+
     OUTPUT FORMAT:
     ### PERCENTS
-    [Your Final Calibrated Percentages: Home% - Draw% - Away%]
+    [Home% - Draw% - Away%]
     
     ### INSIGHT
-    [The Tactical Preview: Max 3 sentences. Focus on style of play and the stats that affected the prediction.]
+    [3 sentences. Discuss if teams are in a "purple patch" or a "slump".]
     
     ### REASONING
-    [Explain your calibration. Explicitly mention if you adjusted for 'Overreaction to Form (Momentum)' or 'Small Sample Size'.]
+    [Explain the Season vs Recent comparison and how it affected your forecast.]
     """
 
     response = client.models.generate_content(model=MODEL_ID, contents=prompt)
