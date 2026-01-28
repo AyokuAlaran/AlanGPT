@@ -1,7 +1,10 @@
 import streamlit as st
 import pandas as pd
 import os
-import gemini_backend_v6 as backend
+import gemini_backend_v6 as backend 
+# NOTE: Ensure this import matches the filename where you pasted the v8 code. 
+# If you pasted the v8 code into 'gemini_backend_v6.py', keep this. 
+# If you named it 'gemini_backend_v8.py', change this line!
 
 # 1. CONFIG
 st.set_page_config(page_title="BPCL Scout", page_icon="⚽", layout="centered")
@@ -26,6 +29,7 @@ st.markdown("""
 
 # 2. LOGO UTILS
 def get_logo_path(team_name):
+    # Checks for multiple extensions
     for ext in ["png", "PNG", "jpg", "JPG"]:
         path = f"team_logos/{team_name}.{ext}"
         if os.path.exists(path): return path
@@ -34,11 +38,12 @@ def get_logo_path(team_name):
 # 3. HIGH SPEED LOADING
 @st.cache_resource
 def load_system():
-    # Only loads once. Super fast.
+    # UPDATED: Now returns 3 items (Model, Scaler, Data)
     return backend.load_production_system()
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_report(t1, t2):
+    # UPDATED: Passes the global 'scaler' to the backend
     return backend.run_ai_prediction(t1, t2, model, scaler, matches)
 
 # 4. UI LAYOUT
@@ -46,7 +51,8 @@ st.link_button("🏆 League Table", "https://myproclubs.com/t/bpcl")
 st.markdown('<h1 class="main-title">BPCL Match Predictor</h1>', unsafe_allow_html=True)
 
 with st.spinner("Booting AI..."):
-    model, matches = load_system()
+    # UPDATED: Unpack 3 variables here
+    model, scaler, matches = load_system()
     teams = sorted(matches['home_team'].unique())
 
 c1, c2 = st.columns(2)
@@ -57,14 +63,15 @@ with c2: t2 = st.selectbox("Away", teams, index=1, key="2")
 if st.button("GENERATE SCOUT REPORT"):
     if t1 != t2:
         with st.spinner(f"⚡ Analyzing {t1} vs {t2}..."):
+            # The function 'get_report' uses the global 'scaler' we defined above
             raw = get_report(t1, t2)
             
             # Parsing
             try:
                 parts = raw.split("###")
-                percents = parts[1].replace("PERCENTS", "").strip()
-                insight = parts[2].replace("INSIGHT", "").strip()
-                reasoning = parts[3].replace("REASONING", "").strip()
+                percents = parts[1].replace("PERCENTS", "").strip() if len(parts) > 1 else "Pending"
+                insight = parts[2].replace("INSIGHT", "").strip() if len(parts) > 2 else raw
+                reasoning = parts[3].replace("REASONING", "").strip() if len(parts) > 3 else "Analysis Unavailable"
             except:
                 percents, insight, reasoning = "Pending", raw, "Analysis Error"
 
@@ -92,5 +99,7 @@ if st.button("GENERATE SCOUT REPORT"):
             
             # HIDDEN REASONING
             st.write("")
-            with st.expander("Show Model Reasoning (Technical Data)"):
+            with st.expander("Show Model Reasoning (Math & Weights)"):
                 st.info(reasoning)
+    else:
+        st.warning("⚠️ Please select two different teams.")
